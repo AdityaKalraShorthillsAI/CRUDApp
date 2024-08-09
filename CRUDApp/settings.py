@@ -160,7 +160,3 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'api.User'
-
-
-# NRAK-I57W86XQ7M5S2GAC3LLJBBUWEKR
-# bfbe449eb227da0b9e41419a1257f8caf144NRAL

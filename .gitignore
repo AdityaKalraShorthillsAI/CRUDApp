@@ -3,3 +3,4 @@ db.sqlite3
 gunicorn.conf
 locustfile.py
 newrelic.ini
+.env

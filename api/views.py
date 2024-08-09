@@ -1,0 +1,281 @@
+from api.models import Comment, Post, Profile, User
+from api.utils import Utils
+from datetime import timezone
+from django.contrib.auth import authenticate
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.http import HttpResponse
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.authtoken.models import Token
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+
+class UserSignupView(APIView):
+    def post(self, request, *args, **kwargs):
+        try:
+            username = request.data.get("username")
+            email = request.data.get("email")
+            password = request.data.get("password")
+
+            if not username or not email or not password:
+                return Response(
+                    {"message": "Missing required fields"}, status.HTTP_400_BAD_REQUEST
+                )
+
+            if User.objects.filter(username=username).exists():
+                return Response(
+                    {"message": "User already exists"}, status.HTTP_400_BAD_REQUEST
+                )
+
+            if User.objects.filter(email=email).exists():
+                return Response(
+                    {"message": "Email already exists"}, status.HTTP_400_BAD_REQUEST
+                )
+
+            user = User.objects.create_user(
+                username=username, email=email, password=password
+            )
+            profile = Profile.objects.create(user=user)
+
+            return Response(
+                {"message": "User created successfully"},
+                status=status.HTTP_201_CREATED,
+            )
+        except:
+            return Response(
+                {"error": "Internal Server Error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class UserLoginView(APIView):
+    def post(self, request, *args, **kwargs):
+        try:
+            username = request.data.get("username")
+            password = request.data.get("password")
+
+            user = authenticate(request=request, username=username, password=password)
+            if not user:
+                return Response(
+                    {"message": "Invalid username or password"},
+                    status.HTTP_400_BAD_REQUEST,
+                )
+
+            token, created = Token.objects.get_or_create(user=user)
+            user.last_login = timezone.now()
+            user.save()
+
+            return Response(
+                {
+                    "username": user.username,
+                    "token": token.key,
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Internal Server Error {e}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class PostView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request, *args, **kwargs):
+        user_id = request.user.id
+        post_slug = kwargs.get("post_slug", None)
+        page_number = request.GET.get('p_num', 1)
+        page_size = request.GET.get('p_size', 10)
+
+        if post_slug is None:
+            try:
+                posts = Post.objects.filter(author_id=user_id).order_by("-updated_at")
+                paginator = Paginator(posts, page_size)  # Show 10 posts per page
+
+                try:
+                    page_posts = paginator.page(page_number)
+                except PageNotAnInteger:
+                    page_posts = paginator.page(1)
+                except EmptyPage:
+                    page_posts = paginator.page(paginator.num_pages)
+
+                all_post = []
+                for post in page_posts:
+                    all_post.append(
+                        {
+                            "id": post.id,
+                            "title": post.title,
+                            "slug": post.slug,
+                            "content": post.content,
+                            "created_at": post.created_at,
+                            "updated_at": post.updated_at,
+                            "author": post.author.username,
+                            "comments": [
+                                comment.comment for comment in post.comments.all()
+                            ],
+                        }
+                    )
+
+                return Response(
+                    {
+                        "posts": all_post,
+                        "page": page_posts.number,
+                        "total_pages": paginator.num_pages,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            except Exception as e:
+                print(e)
+                return Response(
+                    {
+                        "error": "Internal Server Error",
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+
+        else:
+            post = Post.objects.filter(author_id=user_id, slug=post_slug).first()
+            if post is None:
+                return Response(
+                    {"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+            else:
+                return Response(
+                    {
+                        "id": post.id,
+                        "title": post.title,
+                        "slug": post.slug,
+                        "content": post.content,
+                        "created_at": post.created_at,
+                        "updated_at": post.updated_at,
+                        "author": post.author.username,
+                        "comments": [
+                            {"comment": comment.comment, "user": comment.author.username} for comment in post.comments.all()
+                        ],
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+    def post(self, request, *args, **kwargs):
+        user_id = request.user.id
+        data = request.data
+        title = data.get("title")
+        content = data.get("content")
+        if title is None or content is None:
+            return Response(
+                {"error": "Title and content are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        else:
+            try:
+                slug = Utils.slugify(title)
+                if Post.objects.filter(slug=slug).exists():
+                    return Response(
+                        {"error": "Blog with same title already exists"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                post = Post.objects.create(
+                    title=title,
+                    content=content,
+                    author_id=user_id,
+                    slug=slug,
+                )
+                return Response(
+                    {
+                        "id": post.id,
+                        "title": post.title,
+                        "slug": post.slug,
+                        "content": post.content,
+                        "created_at": post.created_at,
+                        "updated_at": post.updated_at,
+                        "author": post.author.username,
+                        "comments": [],
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
+            except Exception as e:
+                print(e)
+                return Response(
+                    {"error": "Can't create post"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+    def patch(self, request, *args, **kwargs):
+        user_id = request.user.id
+        post_slug = kwargs.get("post_slug")
+        post = Post.objects.filter(author_id=user_id, slug=post_slug).first()
+        if post is None:
+            return Response(
+                {"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        if post_slug:
+            data = request.data
+            if data.get("comment", None) is None:
+                title = data.get("title")
+                content = data.get("content")
+                if title is not None:
+                    post.title = title
+                if content is not None:
+                    post.content = content
+                post.save()
+                return Response(
+                    {
+                        "id": post.id,
+                        "title": post.title,
+                        "slug": post.slug,
+                        "content": post.content,
+                        "created_at": post.created_at,
+                        "updated_at": post.updated_at,
+                        "author": post.author.username,
+                        "comments": [
+                            comment.comment for comment in post.comments.all()
+                        ],
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+            else:
+                comment = data.get("comment", None)
+                if comment:
+                    comment_obj = Comment.objects.create(
+                        post=post, author=request.user, comment=comment
+                    )
+                    print(comment_obj)
+                    if comment_obj:
+                        return Response(
+                            {"message": "Comment added successfully"},
+                            status=status.HTTP_201_CREATED,
+                        )
+                    return Response(
+                        {"error": "Failed to add comment"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
+                return Response(
+                    {"error": "Can not add empty comment"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            return Response(
+                {"error": "Not Allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED
+            )
+
+    def delete(self, request, *args, **kwargs):
+        user_id = request.user.id
+        post_slug = kwargs.get("post_slug")
+        if post_slug:
+            post = Post.objects.filter(author_id=user_id, slug=post_slug).first()
+            if post is None:
+                return Response(
+                    {"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+            else:
+                post.delete()
+                return Response(status=status.HTTP_204_NO_CONTENT)
+
+        return Response(
+            {"error": "Not Allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )

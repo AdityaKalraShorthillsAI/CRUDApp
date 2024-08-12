@@ -86,7 +86,8 @@ class PostView(APIView):
 
     def get(self, request, *args, **kwargs):
         user_id = request.user.id
-        post_slug = kwargs.get("post_slug", None)
+        # post_slug = kwargs.get("post_slug", None)
+        post_slug = request.data.get("post_slug", None)
         page_number = request.GET.get('p_num', 1)
         page_size = request.GET.get('p_size', 10)
 
@@ -154,7 +155,7 @@ class PostView(APIView):
                         "updated_at": post.updated_at,
                         "author": post.author.username,
                         "comments": [
-                            {"comment": comment.comment, "user": comment.author.username} for comment in post.comments.all()
+                            {"comment": comment.comment, "user": comment.author.username} for comment in list(post.comments.all())[:5]
                         ],
                     },
                     status=status.HTTP_200_OK,
@@ -206,7 +207,8 @@ class PostView(APIView):
 
     def patch(self, request, *args, **kwargs):
         user_id = request.user.id
-        post_slug = kwargs.get("post_slug")
+        # post_slug = kwargs.get("post_slug")
+        post_slug = request.data.get("post_slug", None)
         post = Post.objects.filter(author_id=user_id, slug=post_slug).first()
         if post is None:
             return Response(

@@ -81,7 +81,7 @@ INTERNAL_IPS = [
     # ...
 ]
 
-ALLOWED_HOSTS = ["127.0.0.1"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 
 # Database
@@ -97,18 +97,30 @@ DATABASES = {
     #     'PORT': os.getenv('DB_PORT'),
     # }
     'default': {
-        'ENGINE': 'mysql.connector.django',
-        'OPTIONS': {
-            'pool_name': 'my_pool',
-            'pool_size': 10,
-            'pool_reset_session': True,
-        },
-        'NAME': os.getenv('DB_NAME'),
-        'HOST': os.getenv('DB_HOST'),
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'CRUDApp',
         'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'PORT': os.getenv('DB_PORT'),
+        'PASSWORD': "Root1221@",
+        'HOST': os.getenv('DB_HOST'),
+        # 'PORT': os.getenv('DB_PORT'),
+        'PORT': 5432
     }
+
+
+
+    # 'default': {
+    #     'ENGINE': 'mysql.connector.django',
+    #     'OPTIONS': {
+    #         'pool_name': 'my_pool',
+    #         'pool_size': 10,
+    #         'pool_reset_session': True,
+    #     },
+    #     'NAME': os.getenv('DB_NAME'),
+    #     'HOST': os.getenv('DB_HOST'),
+    #     'USER': os.getenv('DB_USER'),
+    #     'PASSWORD': os.getenv('DB_PASSWORD'),
+    #     'PORT': os.getenv('DB_PORT'),
+    # }
 }
 
 REST_FRAMEWORK = {

@@ -37,8 +37,10 @@ class Post(models.Model):
     def __str__(self):
         return self.title
 
-    class Meta:
-        index_together = ('slug',)
+    # class Meta:
+    #     indexes = [
+    #         models.Index(fields=['slug']),
+    #     ]
 
 class Comment(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
@@ -50,3 +52,8 @@ class Comment(models.Model):
 
     def __str__(self):
         return f'Comment by {self.author} on {self.post}'
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['author', 'post']),
+        ]

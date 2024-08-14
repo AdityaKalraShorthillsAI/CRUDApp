@@ -94,16 +94,20 @@ DATABASES = {
     #     'HOST': os.getenv('DB_HOST'),
     #     'USER': os.getenv('DB_USER'),
     #     'PASSWORD': os.getenv('DB_PASSWORD'),
-    #     'PORT': os.getenv('DB_PORT'),
+    #     'PORT': 3306,
     # }
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'CRUDApp',
+        'NAME': os.getenv('DB_NAME'),
         'USER': os.getenv('DB_USER'),
-        'PASSWORD': "Root1221@",
-        'HOST': os.getenv('DB_HOST'),
-        # 'PORT': os.getenv('DB_PORT'),
-        'PORT': 5432
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': '127.0.0.1',
+        'PORT': 5432,
+        # 'CONN_MAX_AGE': 600,
+        # 'OPTIONS': {`
+        #     'connect_timeout': 10,
+        # }, `
+        'PORT': '6432'
     }
 
 

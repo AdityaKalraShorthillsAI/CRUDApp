@@ -3,6 +3,7 @@ from api.utils import Utils
 from datetime import timezone
 from django.contrib.auth import authenticate
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db.models import Prefetch
 from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework import status
@@ -62,11 +63,7 @@ class UserLoginView(APIView):
                     {"message": "Invalid username or password"},
                     status.HTTP_400_BAD_REQUEST,
                 )
-
             token, created = Token.objects.get_or_create(user=user)
-            user.last_login = timezone.now()
-            user.save()
-
             return Response(
                 {
                     "username": user.username,
@@ -86,15 +83,26 @@ class PostView(APIView):
 
     def get(self, request, *args, **kwargs):
         user_id = request.user.id
-        # post_slug = kwargs.get("post_slug", None)
         post_slug = request.data.get("post_slug", None)
-        page_number = request.GET.get('p_num', 1)
-        page_size = request.GET.get('p_size', 10)
-
         if post_slug is None:
             try:
-                posts = Post.objects.filter(author_id=user_id).order_by("-updated_at")
-                paginator = Paginator(posts, page_size)  # Show 10 posts per page
+                page_number = request.GET.get("p_num", 1)
+                page_size = request.GET.get("p_size", 10)
+                posts = (
+                    Post.objects.filter(author_id=user_id)
+                    .select_related("author")
+                    .only(
+                        "id",
+                        "title",
+                        "slug",
+                        "content",
+                        "created_at",
+                        "updated_at",
+                        "author__username",
+                    )
+                    .order_by("-updated_at")
+                )
+                paginator = Paginator(posts, page_size)
 
                 try:
                     page_posts = paginator.page(page_number)
@@ -103,9 +111,7 @@ class PostView(APIView):
                 except EmptyPage:
                     page_posts = paginator.page(paginator.num_pages)
 
-                all_post = []
-                for post in page_posts:
-                    all_post.append(
+                all_post = [
                         {
                             "id": post.id,
                             "title": post.title,
@@ -115,10 +121,17 @@ class PostView(APIView):
                             "updated_at": post.updated_at,
                             "author": post.author.username,
                             "comments": [
-                                comment.comment for comment in post.comments.all()
+                                {
+                                    "comment": comment.comment,
+                                    "user": comment.author.username,
+                                }
+                                for comment in list(
+                                    post.comments.select_related().all()[:5]
+                                )
                             ],
                         }
-                    )
+                    for post in page_posts
+                ]
 
                 return Response(
                     {
@@ -137,14 +150,27 @@ class PostView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
-
         else:
-            post = Post.objects.filter(author_id=user_id, slug=post_slug).first()
+            post = (
+                Post.objects.filter(slug=post_slug)
+                .select_related("author")
+                .only(
+                    "id",
+                    "title",
+                    "slug",
+                    "content",
+                    "created_at",
+                    "updated_at",
+                    "author__username",
+                )
+                .first()
+            )
             if post is None:
                 return Response(
                     {"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND
                 )
             else:
+                comments = list(Comment.objects.select_related("author").filter(post=post).values("comment", "author__username")[:5])
                 return Response(
                     {
                         "id": post.id,
@@ -154,9 +180,14 @@ class PostView(APIView):
                         "created_at": post.created_at,
                         "updated_at": post.updated_at,
                         "author": post.author.username,
-                        "comments": [
-                            {"comment": comment.comment, "user": comment.author.username} for comment in list(post.comments.all())[:5]
-                        ],
+                        # "comments": [
+                        #     {
+                        #         "comment": comment.comment,
+                        #         "user": comment.author.username,
+                        #     }
+                        #     for comment in list(post.comments.all())[:5]
+                        # ],
+                        "comments": comments,
                     },
                     status=status.HTTP_200_OK,
                 )
@@ -174,11 +205,12 @@ class PostView(APIView):
         else:
             try:
                 slug = Utils.slugify(title)
-                if Post.objects.filter(slug=slug).exists():
-                    return Response(
-                        {"error": "Blog with same title already exists"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                post = Post.objects.get(slug=slug)
+                return Response(
+                    {"error": "Blog with same title already exists"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            except Post.DoesNotExist:
                 post = Post.objects.create(
                     title=title,
                     content=content,
@@ -234,7 +266,11 @@ class PostView(APIView):
                         "updated_at": post.updated_at,
                         "author": post.author.username,
                         "comments": [
-                            comment.comment for comment in post.comments.all()
+                            {
+                                "comment": comment.comment,
+                                "user": comment.author.username,
+                            }
+                            for comment in list(post.comments.all())[:5]
                         ],
                     },
                     status=status.HTTP_200_OK,

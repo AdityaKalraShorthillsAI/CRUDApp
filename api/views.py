@@ -12,6 +12,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django.views.decorators.cache import cache_page
+from django.utils.decorators import method_decorator
+
+from django.core.cache import cache
+
 
 class UserSignupView(APIView):
     def post(self, request, *args, **kwargs):
@@ -51,11 +56,18 @@ class UserSignupView(APIView):
             )
 
 
+# @method_decorator(cache_page(60 * 15), name='dispatch')
 class UserLoginView(APIView):
     def post(self, request, *args, **kwargs):
         try:
             username = request.data.get("username")
             password = request.data.get("password")
+
+            cache_key = f"login__{username}__{password}"
+            cached_data = cache.get(cache_key)
+
+            if cached_data:
+                return Response(cached_data, status=status.HTTP_200_OK)
 
             user = authenticate(request=request, username=username, password=password)
             if not user:
@@ -64,14 +76,17 @@ class UserLoginView(APIView):
                     status.HTTP_400_BAD_REQUEST,
                 )
             token, created = Token.objects.get_or_create(user=user)
+            response = {
+                "username": user.username,
+                "token": token.key,
+            }
+            cache.set(cache_key, response, timeout=60 * 15)
             return Response(
-                {
-                    "username": user.username,
-                    "token": token.key,
-                },
+                data=response,
                 status=status.HTTP_200_OK,
             )
         except Exception as e:
+            print(e)
             return Response(
                 {"error": f"Internal Server Error {e}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -88,6 +103,12 @@ class PostView(APIView):
             try:
                 page_number = request.GET.get("p_num", 1)
                 page_size = request.GET.get("p_size", 10)
+
+                cache_key = f"all_posts__{user_id}__{page_number}__{page_size}"
+                cached_data = cache.get(cache_key)
+                if cached_data:
+                    return Response(cached_data, status=status.HTTP_200_OK)
+
                 posts = (
                     Post.objects.filter(author_id=user_id)
                     .select_related("author")
@@ -102,6 +123,10 @@ class PostView(APIView):
                     )
                     .order_by("-updated_at")
                 )
+
+                Post.objects.raw("""
+                    SELECT * FROM
+            """)
                 paginator = Paginator(posts, page_size)
 
                 try:
@@ -112,33 +137,36 @@ class PostView(APIView):
                     page_posts = paginator.page(paginator.num_pages)
 
                 all_post = [
-                        {
-                            "id": post.id,
-                            "title": post.title,
-                            "slug": post.slug,
-                            "content": post.content,
-                            "created_at": post.created_at,
-                            "updated_at": post.updated_at,
-                            "author": post.author.username,
-                            "comments": [
-                                {
-                                    "comment": comment.comment,
-                                    "user": comment.author.username,
-                                }
-                                for comment in list(
-                                    post.comments.select_related().all()[:5]
-                                )
-                            ],
-                        }
+                    {
+                        "id": post.id,
+                        "title": post.title,
+                        "slug": post.slug,
+                        "content": post.content,
+                        "created_at": post.created_at,
+                        "updated_at": post.updated_at,
+                        "author": post.author.username,
+                        # "comments": [
+                        #     {
+                        #         "comment": comment.comment,
+                        #         "user": comment.author.username,
+                        #     }
+                        #     for comment in list(
+                        #         post.comments.select_related().all()[:5]
+                        #     )
+                        # ],
+                    }
                     for post in page_posts
                 ]
 
+                response = {
+                    "posts": all_post,
+                    "page": page_posts.number,
+                    "total_pages": paginator.num_pages,
+                }
+                cache.set(cache_key, response, timeout=60 * 15)
+
                 return Response(
-                    {
-                        "posts": all_post,
-                        "page": page_posts.number,
-                        "total_pages": paginator.num_pages,
-                    },
+                    data=response,
                     status=status.HTTP_200_OK,
                 )
             except Exception as e:
@@ -170,7 +198,11 @@ class PostView(APIView):
                     {"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND
                 )
             else:
-                comments = list(Comment.objects.select_related("author").filter(post=post).values("comment", "author__username")[:5])
+                comments = list(
+                    Comment.objects.select_related("author")
+                    .filter(post=post)
+                    .values("comment", "author__username")[:5]
+                )
                 return Response(
                     {
                         "id": post.id,
@@ -265,13 +297,13 @@ class PostView(APIView):
                         "created_at": post.created_at,
                         "updated_at": post.updated_at,
                         "author": post.author.username,
-                        "comments": [
-                            {
-                                "comment": comment.comment,
-                                "user": comment.author.username,
-                            }
-                            for comment in list(post.comments.all())[:5]
-                        ],
+                        # "comments": [
+                        #     {
+                        #         "comment": comment.comment,
+                        #         "user": comment.author.username,
+                        #     }
+                        #     for comment in list(post.comments.all())[:5]
+                        # ],
                     },
                     status=status.HTTP_200_OK,
                 )

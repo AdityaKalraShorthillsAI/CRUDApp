@@ -9,7 +9,7 @@ file_path = os.path.join(os.path.dirname(__file__), "blogtext.csv")
 
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
-        # user = User.objects.get(username="adityakalra1")
+        # user = User.objects.get(username="adityakalra")
         # df = pd.read_csv(file_path)
         # posts = []
         # count = 0
@@ -55,6 +55,8 @@ class Command(BaseCommand):
         #     except Exception as e:
         #         print(e)
 
+       
+    #    -----------------------------------------------------------------------------------------------------------------
         user = User.objects.get(username="adityakalra")
         posts = Post.objects.all()
         comments = []
@@ -69,8 +71,8 @@ class Command(BaseCommand):
                             comment=comment_content,
                         )
                     )
-                    if len(comments) == 2000:
-                        Comment.objects.bulk_create(comments, batch_size=200)
+                    if len(comments) == 5000:
+                        Comment.objects.bulk_create(comments, batch_size=1000)
                         print(f"{len(comments)} comments created")
                         comments = []
                 except:

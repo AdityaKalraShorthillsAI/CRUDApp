@@ -13,7 +13,8 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.getcwd(), '.env'))
+
+load_dotenv(os.path.join(os.getcwd(), ".env"))
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -55,7 +56,7 @@ MIDDLEWARE = [
     "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
 
-ROOT_URLCONF = 'CRUDApp.urls'
+ROOT_URLCONF = "CRUDApp.urls"
 
 TEMPLATES = [
     {
@@ -73,7 +74,21 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'CRUDApp.wsgi.application'
+STATIC_URL = "/static/"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+
+# # Enable Gzip compression
+# WHITENOISE_USE_FINDERS = True
+# WHITENOISE_AUTOREFRESH = True  # Only for development; disable in production
+# WHITENOISE_MANIFEST_STRICT = False
+# WHITENOISE_KEEP_ONLY_HASHED_FILES = True
+
+# WHITENOISE_MAX_AGE = 31536000  # Set cache duration (1 year in seconds)
+# STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+CORS_ORIGIN_ALLOW_ALL = True
+
+
+WSGI_APPLICATION = "CRUDApp.wsgi.application"
 
 INTERNAL_IPS = [
     # ...
@@ -81,7 +96,8 @@ INTERNAL_IPS = [
     # ...
 ]
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+# ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["*"]
 
 
 # Database
@@ -103,34 +119,32 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASSWORD'),
         'HOST': '127.0.0.1',
         'PORT': 5432,
-        # 'CONN_MAX_AGE': 600,
+        'CONN_MAX_AGE': 600,
         # 'OPTIONS': {`
         #     'connect_timeout': 10,
         # }, `
-        'PORT': '6432'
-    }
-
-
-
-    # 'default': {
-    #     'ENGINE': 'mysql.connector.django',
-    #     'OPTIONS': {
-    #         'pool_name': 'my_pool',
-    #         'pool_size': 10,
-    #         'pool_reset_session': True,
+        # 'PORT': '6432'
+    },
+  
+    # "default": {
+    #     "ENGINE": "djongo",
+    #     "NAME": "crud",
+    #     "ENFORCE_SCHEMA": False,
+    #     "ENCRYPTED": True,
+    #     "CLIENT": {
+    #         # "host": "mongodb+srv://adikalra:fbasRgJytLhTIbPw@cluster0.thmyo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
+    #         "host": "mongodb://localhost:27017/",
+    #         # "username": "adikalra",
+    #         # "password": "Adityakalra870",
+    #         # "authSource": "admin",
     #     },
-    #     'NAME': os.getenv('DB_NAME'),
-    #     'HOST': os.getenv('DB_HOST'),
-    #     'USER': os.getenv('DB_USER'),
-    #     'PASSWORD': os.getenv('DB_PASSWORD'),
-    #     'PORT': os.getenv('DB_PORT'),
     # }
 }
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.TokenAuthentication",
-        'rest_framework.authentication.BasicAuthentication',
+        "rest_framework.authentication.BasicAuthentication",
     ],
 }
 
@@ -166,13 +180,18 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.2/howto/static-files/
-
-STATIC_URL = 'static/'
-
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-AUTH_USER_MODEL = 'api.User'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+AUTH_USER_MODEL = "api.User"
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    }
+}

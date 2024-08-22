@@ -5,3 +5,4 @@ gunicorn.conf
 newrelic.ini
 .env
 env/
+*.csv

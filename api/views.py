@@ -112,21 +112,18 @@ class PostView(APIView):
                 posts = (
                     Post.objects.filter(author_id=user_id)
                     .select_related("author")
-                    .only(
-                        "id",
-                        "title",
-                        "slug",
-                        "content",
-                        "created_at",
-                        "updated_at",
-                        "author__username",
-                    )
+                    # .only(
+                    #     "id",
+                    #     "title",
+                    #     "slug",
+                    #     "content",
+                    #     "created_at",
+                    #     "updated_at",
+                    #     "author__username",
+                    # )
                     .order_by("-updated_at")
                 )
 
-                Post.objects.raw("""
-                    SELECT * FROM
-            """)
                 paginator = Paginator(posts, page_size)
 
                 try:
@@ -227,9 +224,10 @@ class PostView(APIView):
     def post(self, request, *args, **kwargs):
         user_id = request.user.id
         data = request.data
-        title = data.get("title")
-        content = data.get("content")
+        title = data.get("title", None)
+        content = data.get("content", None)
         if title is None or content is None:
+            print("Title or content missing")
             return Response(
                 {"error": "Title and content are required"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -238,6 +236,7 @@ class PostView(APIView):
             try:
                 slug = Utils.slugify(title)
                 post = Post.objects.get(slug=slug)
+                print("Blog with same title already exists")
                 return Response(
                     {"error": "Blog with same title already exists"},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -249,6 +248,7 @@ class PostView(APIView):
                     author_id=user_id,
                     slug=slug,
                 )
+                print("Blog created successfully")
                 return Response(
                     {
                         "id": post.id,
@@ -263,7 +263,7 @@ class PostView(APIView):
                     status=status.HTTP_201_CREATED,
                 )
             except Exception as e:
-                print(e)
+                print("Cannot create post")
                 return Response(
                     {"error": "Can't create post"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,

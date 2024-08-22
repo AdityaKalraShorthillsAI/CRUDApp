@@ -128,18 +128,40 @@ DATABASES = {
   
     # "default": {
     #     "ENGINE": "djongo",
-    #     "NAME": "crud",
+    #     "NAME": "crudapp",
     #     "ENFORCE_SCHEMA": False,
     #     "ENCRYPTED": True,
     #     "CLIENT": {
-    #         # "host": "mongodb+srv://adikalra:fbasRgJytLhTIbPw@cluster0.thmyo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
-    #         "host": "mongodb://localhost:27017/",
-    #         # "username": "adikalra",
-    #         # "password": "Adityakalra870",
-    #         # "authSource": "admin",
+    #         # "host": "mongodb://localhost:27017/",
+    #         "host": "mongodb+srv://adikalra:fbasRgJytLhTIbPw@cluster0.thmyo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
+    #         "username": "adikalra",
+    #         "password": "Adityakalra870",
+    #         "authSource": "admin",
     #     },
     # }
 }
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'crudapp',
+        'USER': 'root',
+        'PASSWORD': 'Root1221@',
+        'HOST': 'localhost',
+        'PORT': '5432',
+    },
+    'replica': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'crudapp_slave',
+        'USER': 'root',
+        'PASSWORD': 'Root1221@',
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
+}
+
+DATABASE_ROUTERS = ['databaseRouter.DatabaseRouter']
+
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [

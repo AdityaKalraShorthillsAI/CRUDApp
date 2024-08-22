@@ -6,3 +6,4 @@ newrelic.ini
 .env
 env/
 *.csv
+**/migrations/
